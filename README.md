@@ -1,237 +1,225 @@
 # GV Field Equations
 
-This repository contains the formal mathematical program for the God Variable (GV).
+**Gradient Variable (GV)** is a constraint-based scalar field framework exploring how exponential gradient suppression can regulate high-energy phenomena.
 
-Unlike the main `god-variable-theory` hub (concept + ecosystem),
-this repo is strictly for quantitative development.
+This repository implements toy QFT-scale modules to explore:
 
-The goal:
+- Neutrino mass generation
+- Baryogenesis (CP asymmetry)
+- Higgs hierarchy stabilization
+- Constraint-driven suppression of UV divergences
 
-> Move GV from conceptual coherence to predictive field theory.
-
----
-
-# Core Structure
-
-## Field Theory
-
-- `field/gv_flow_equation.md`
-- `field/effective_action.md`
-- `field/perturbation_analysis.md`
-
-## Cosmology
-
-- `cosmology/flrw_embedding.md`
-- `cosmology/inflation.md`
-- `cosmology/dark_energy.md`
-
-## Quantum Field Theory
-
-- `qft/gv_modified_rg.md`
-- `qft/higgs_protection.md`
-- `qft/strong_cp.md`
-
-## Black Holes
-
-- `black_holes/entropy_counting.md`
-- `black_holes/evaporation_unitarity.md`
+The goal is not full UV completion — this is a structured sandbox for testing GV-controlled scaling behavior.
 
 ---
 
----
+# Core Idea
 
-# GV Neutrino & Baryogenesis Framework
+GV acts as a constraint-gradient field that modifies effective masses and couplings:
 
-This module extends the God Variable (GV) program into the neutrino and baryogenesis sector.
+General structure:
 
-The goal is not to reproduce the full Standard Model —  
-it is to demonstrate how **constraint-flow dynamics** can generate:
-
-- Neutrino mass hierarchies  
-- Heavy sterile suppression  
-- CP asymmetry  
-- Baryon asymmetry (BAU)  
-- Predictive scaling with gradients  
-
----
-
-## 1. Gradient-Controlled Seesaw
-
-We implement a GV-modified Majorana mass:
-
-\[
-M(GV) = M_0 \exp(-\alpha \, GV)
-\]
-
-where:
-
-- \( GV \) represents constraint intensity
-- \( \alpha \) controls gradient suppression strength
-- \( M_0 \) is the baseline sterile scale
-
-Light neutrino masses emerge via seesaw:
-
-\[
-m_\nu(GV) = \frac{m_D^2}{M(GV)}
-\]
+Effective parameter ~ Base scale × exp(-α · GV)
 
 This produces:
 
-- Heavy steriles suppressed at high GV
-- Light neutrino masses enhanced by constraint curvature
-- Natural hierarchy from gradient structure
-
-**Prediction:**
-Neutrino mass scaling correlates with GV gradients rather than arbitrary Yukawa tuning.
+- Suppressed heavy masses in high-GV regimes
+- Natural hierarchies without fine tuning
+- IR freedom with UV regulation
+- Exponential damping of quadratic divergences
 
 ---
 
-## 2. CP Asymmetry from Constraint Flow
+# Repository Structure
 
-We model CP asymmetry as a temperature-dependent gradient response:
+```
+qft/
+ ├── neutrino_engine.py
+ ├── baryogenesis_engine.py
+ ├── higgs_engine.py
+ ├── hierarchy_stabilization.md
+ ├── neutrino_flavor_hierarchy.py
+ ├── neutrino_seesaw_toy.py
+ ├── strong_cp_theta_dynamics.md
+ ├── theta_relaxation_toy.py
+```
 
-\[
-\epsilon(GV, T) \propto GV \, \exp(-\alpha GV) \, f(T)
-\]
+Outputs are written to:
 
-Where:
-
-- CP violation emerges from non-equilibrium constraint flow
-- No explicit axion or fine-tuned θ-term required
-- Asymmetry peaks at finite temperature
-
-**Interpretation:**
-CP violation is not inserted —  
-it emerges dynamically from the relaxation of constrained sectors.
-
----
-
-## 3. Baryogenesis Toy Model
-
-The BAU is modeled as:
-
-\[
-\eta_B \sim \kappa \, \epsilon(GV, T)
-\]
-
-Where efficiency \( \kappa \) captures washout effects.
-
-The framework predicts:
-
-- BAU amplitude scaling with GV
-- Suppression at extreme constraint values
-- Parameter regions consistent with CMB baryon density
+```
+out/
+```
 
 ---
 
-## 4. Emergent Hierarchies
+# 1️⃣ Neutrino Engine
 
-The GV framework unifies:
+GV-controlled seesaw mechanism.
 
-| Sector | Mechanism |
-|--------|------------|
-| Neutrino masses | Gradient seesaw suppression |
-| CP violation | Constraint-flow relaxation |
-| BAU | Temperature-dependent asymmetry peak |
-| Heavy sterile scale | Exponential gradient suppression |
+Seesaw structure:
 
-This replaces disconnected fine-tunings with a single scalar driver.
+m_ν ≈ m_D² / M_eff  
+M_eff = M0 · exp(-α · GV)
 
----
+Behavior:
 
-## 5. Testable Directions
+- Increasing GV suppresses heavy sterile mass
+- Light neutrino mass scales with gradient
+- Hierarchies emerge naturally
 
-Future refinement will:
+### Run Single Point
 
-- Fit Δm² values to oscillation data (T2K, NOvA)
-- Constrain Σmν to Planck CMB bounds
-- Estimate IceCube sterile sensitivity
-- Compute BAU magnitude vs observed η_B ≈ 6×10⁻¹⁰
-- Connect to strong CP relaxation module
+```bash
+python3 qft/neutrino_engine.py --gv 1.0
+```
 
----
+### Run GV Scan
 
-## 6. Conceptual Framing
+```bash
+python3 qft/neutrino_engine.py \
+  --scan \
+  --gv-min 0.1 \
+  --gv-max 10 \
+  --n 400 \
+  --alpha 1.0 \
+  --mD 1e2 \
+  --M0 1e14 \
+  --out out/neutrino_scan.png
+```
 
-In the GV program:
-
-- Gravity = bounded gradients  
-- Dark energy = residual drift  
-- Neutrino mass = curvature suppression  
-- CP violation = flow asymmetry  
-- BAU = non-equilibrium constraint imprint  
-
-Constraint flow becomes the organizing principle.
+Optional CSV output is generated during scans.
 
 ---
 
-This is not yet a full quantum field theory.  
-It is a controlled dynamical scaffold.
+# 2️⃣ Baryogenesis Engine
 
-The objective is coherence first.  
-Precision next.
+Toy CP asymmetry model driven by GV.
+
+Generic structure:
+
+ε(GV, T) ~ α · GV · exp(-T / scale)
+
+Toy BAU scaling:
+
+η_B ~ θ̇(GV) / T
+
+This module visualizes:
+
+- CP asymmetry vs temperature
+- BAU scaling trends
+- GV dependence of asymmetry
+
+### Run
+
+```bash
+python3 qft/baryogenesis_engine.py \
+  --gv 1.0 \
+  --alpha 1.0 \
+  --out out/baryogenesis.png
+```
+
+Example alternate parameters:
+
+```bash
+python3 qft/baryogenesis_engine.py \
+  --gv 3.0 \
+  --alpha 2.0 \
+  --out out/baryogenesis_gv3.png
+```
 
 ---
 
-GV moves from philosophy → equation → engine → prediction.
+# 3️⃣ Higgs Hierarchy Stabilization
+
+Hierarchy problem addressed via exponential gradient suppression.
+
+Quadratic correction structure:
+
+Δm_H² ~ Λ² · exp(-β · GV)
+
+Instead of fine tuning:
+
+- Large UV scale Λ is exponentially damped
+- Effective Higgs mass emerges from gradient control
+- Hierarchy becomes constraint-driven, not accidental
+
+See:
+
+```
+qft/hierarchy_stabilization.md
+```
+
+Run Higgs engine:
+
+```bash
+python3 qft/higgs_engine.py --gv 1.0 --beta 1.0
+```
 
 ---
 
-# Master Equation (Working Form)
+# 4️⃣ Strong CP / Theta Relaxation
 
-We treat GV as a dynamical scalar constraint field:
+Theta relaxation dynamics explored via GV-modified potential:
 
-\[
-\partial_t GV = -\nabla \cdot J_{GV} + S(GV)
-\]
+V(θ, GV) ~ Λ_QCD⁴ (1 − cos θ) · exp(-γ · GV)
 
-Where:
+Goal:
 
-- \(J_{GV}\) = constraint gradient transport
-- \(S(GV)\) = curvature / instability source terms
+- Model dynamic suppression of CP violation
+- Explore gradient-controlled vacuum alignment
 
-Embedded in cosmology:
+See:
 
-\[
-H^2 = \frac{8\pi G}{3} \rho_{\text{eff}}(GV)
-\]
+```
+qft/theta_relaxation_toy.py
+```
 
 ---
 
-# Research Targets
+# Conceptual Summary
 
-To be considered viable, GV must:
+GV introduces exponential constraint suppression into QFT-scale systems:
 
-- Match Planck CMB data
-- Produce viable inflation spectrum (n_s, r, f_NL)
-- Protect Higgs mass via UV→IR suppression
-- Resolve strong CP without axion
-- Reproduce black hole entropy scaling
-- Preserve unitarity in evaporation
-- Match SN Ia and BAO Λ constraints
+| Phenomenon | Standard Issue | GV Interpretation |
+|------------|---------------|------------------|
+| Neutrino Mass | Seesaw hierarchy | Gradient-regulated heavy mass |
+| BAU | CP asymmetry tuning | Gradient-amplified CP sector |
+| Higgs | Quadratic divergence | Exponential UV damping |
+| Strong CP | Small θ unexplained | Gradient vacuum stabilization |
 
 ---
 
 # Philosophy
 
-GV is not introduced as a new particle.
+This is a structured sandbox.
 
-It is a constraint scalar governing:
+It does not claim:
 
-- Stability
-- Gradient transport
-- Cross-scale coupling suppression
+- Complete renormalizable UV completion
+- Full EFT derivation
+- Cosmological parameter fitting
 
-Symmetries emerge as attractors of constraint minimization.
+It does explore:
+
+- Gradient-driven exponential suppression
+- Hierarchy emergence without fine tuning
+- Constraint-flow interpretation of field dynamics
+
+---
+
+# Future Directions
+
+- Full 3×3 GV seesaw matrix
+- One-loop GV-EFT corrections
+- Δm² fits to oscillation data
+- CMB/Planck scaling checks
+- Muon g−2 loop extension
+- Flavor gradient mixing
 
 ---
 
 # Status
 
-⚠️ Speculative / Research stage  
-This repository documents a working theoretical program — not established physics.
+Active development.
 
----
-
-Coherence is required before belief.
-Prediction is required before acceptance.
+This repository is evolving toward a unified GV-QFT gradient suppression framework.
