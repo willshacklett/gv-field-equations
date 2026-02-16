@@ -3,44 +3,43 @@ import matplotlib.pyplot as plt
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--gv-min", type=float, default=0.1)
-parser.add_argument("--gv-max", type=float, default=10)
-parser.add_argument("--n", type=int, default=400)
+
+parser.add_argument("--gv", type=float, default=1.0)
 parser.add_argument("--alpha", type=float, default=1.0)
-parser.add_argument("--T", type=float, default=100)  # temperature scale
+parser.add_argument("--epsilon0", type=float, default=1e-6)
+parser.add_argument("--Tscale", type=float, default=100.0)
 parser.add_argument("--out", type=str, default=None)
+
 args = parser.parse_args()
 
-gv_vals = np.linspace(args.gv_min, args.gv_max, args.n)
+GV = args.gv
+alpha = args.alpha
+epsilon0 = args.epsilon0
+Tscale = args.Tscale
 
-# Toy free energy landscape
-def free_energy(gv, theta):
-    return 0.5 * gv * theta**2 + args.alpha * theta**4
 
-def theta_dot(gv, theta):
-    # gradient flow relaxation
-    dF_dtheta = gv * theta + 4 * args.alpha * theta**3
-    return -dF_dtheta
+def cp_asymmetry(GV, T):
+    """
+    Transient CP bias from GV relaxation
+    ε(GV,T) = ε0 * exp(-alpha*GV) * exp(-T/Tscale)
+    """
+    return epsilon0 * np.exp(-alpha * GV) * np.exp(-T / Tscale)
 
-# Assume small initial theta displacement
-theta0 = 0.1
-theta_rates = np.array([theta_dot(gv, theta0) for gv in gv_vals])
 
-# Toy BAU scaling
-eta_B = theta_rates / args.T
+# temperature range (GeV scale proxy)
+T_vals = np.linspace(0, 500, 400)
+epsilon_vals = cp_asymmetry(GV, T_vals)
 
 plt.figure()
-plt.plot(gv_vals, eta_B)
-plt.axhline(6e-10, linestyle="--", label="Observed BAU ~6e-10")
-plt.xlabel("GV")
-plt.ylabel("η_B (toy)")
-plt.title("GV-Driven Baryogenesis Toy Model")
-plt.legend()
+plt.plot(T_vals, epsilon_vals)
+plt.xlabel("Temperature (GeV proxy)")
+plt.ylabel("CP Asymmetry ε")
+plt.title(f"GV Baryogenesis Toy Model (GV={GV}, α={alpha})")
 
 if args.out:
-    plt.savefig(args.out)
+    plt.savefig(args.out, dpi=300)
 else:
     plt.show()
 
-print("Sample η_B values:")
-print(eta_B[:5])
+print(f"[OK] GV={GV}, alpha={alpha}")
+print(f"[OK] Peak CP asymmetry ~ {epsilon_vals.max():.3e}")
