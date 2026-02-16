@@ -1,96 +1,69 @@
-import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+import argparse
 
+# ----------------------------
+# Argument parser
+# ----------------------------
 
-def V_eff(GV: np.ndarray, V0: float, alpha: float) -> np.ndarray:
-    """
-    GV effective potential (toy):
-        V(GV) = V0 * exp(-alpha * GV)
-    """
-    return V0 * np.exp(-alpha * GV)
+parser = argparse.ArgumentParser()
+parser.add_argument("--alpha", type=float, default=0.1, help="Gradient strength")
+parser.add_argument("--GV0", type=float, default=5.0, help="Initial GV value")
+parser.add_argument("--kappa", type=float, default=0.2, help="Relaxation rate")
+parser.add_argument("--zmax", type=float, default=6.0, help="Max redshift")
+parser.add_argument("--n", type=int, default=400, help="Resolution")
+parser.add_argument("--out", type=str, default=None)
 
+args = parser.parse_args()
 
-def slow_roll_params(alpha: float) -> tuple[float, float]:
-    """
-    For V = V0 e^{-alpha GV} with canonically-normalized GV:
-        epsilon = (1/2) (V'/V)^2 = (1/2) alpha^2
-        eta     = V''/V       = alpha^2
-    """
-    eps = 0.5 * alpha**2
-    eta = alpha**2
-    return eps, eta
+alpha = args.alpha
+GV0 = args.GV0
+kappa = args.kappa
 
+# ----------------------------
+# GV potential
+# ----------------------------
 
-def inflation_observables(alpha: float) -> tuple[float, float]:
-    """
-    Toy predictions:
-        n_s ≈ 1 - 2ε - η = 1 - 2α^2
-        r   = 16ε = 8α^2
-    """
-    eps, eta = slow_roll_params(alpha)
-    ns = 1.0 - 2.0 * eps - eta
-    r = 16.0 * eps
-    return ns, r
+def V(GV):
+    return np.exp(-alpha * GV)
 
+def dV_dGV(GV):
+    return -alpha * np.exp(-alpha * GV)
 
-def gv_relaxation_trajectory(
-    GV0: float,
-    kappa: float,
-    N: int,
-    dt: float,
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Minimal attractor dynamics (toy):
-        dGV/dt = -kappa * GV
-    so GV(t) -> 0.
+# ----------------------------
+# Simple GV evolution vs redshift
+# dGV/dz = -kappa * dV/dGV
+# ----------------------------
 
-    We use this as a stand-in for "relaxation toward low-GV attractor".
-    """
-    t = np.linspace(0.0, dt * (N - 1), N)
-    GV = GV0 * np.exp(-kappa * t)
-    return t, GV
+z_vals = np.linspace(0, args.zmax, args.n)
+GV_vals = np.zeros_like(z_vals)
+GV_vals[0] = GV0
 
+dz = z_vals[1] - z_vals[0]
 
-def main():
-    parser = argparse.ArgumentParser(description="GV Cosmology Engine (toy): potential, slow-roll, trajectory")
-    parser.add_argument("--alpha", type=float, default=0.10, help="Potential slope alpha in V=V0 exp(-alpha GV)")
-    parser.add_argument("--V0", type=float, default=1.0, help="Potential scale V0 (arbitrary units)")
-    parser.add_argument("--GV0", type=float, default=5.0, help="Initial GV value")
-    parser.add_argument("--kappa", type=float, default=0.15, help="Relaxation rate for toy GV trajectory")
-    parser.add_argument("--N", type=int, default=600, help="Number of points in trajectory")
-    parser.add_argument("--dt", type=float, default=0.02, help="Step size for trajectory time axis")
-    parser.add_argument("--out", type=str, default="out/cosmology_engine.png", help="Output plot path")
-    args = parser.parse_args()
+for i in range(1, len(z_vals)):
+    GV_vals[i] = GV_vals[i-1] - kappa * dV_dGV(GV_vals[i-1]) * dz
 
-    # 1) Slow-roll + observables
-    eps, eta = slow_roll_params(args.alpha)
-    ns, r = inflation_observables(args.alpha)
+# Effective dark energy equation of state
+w_eff = -1 + 0.1 * dV_dGV(GV_vals)
 
-    # 2) Relaxation trajectory
-    t, GV = gv_relaxation_trajectory(args.GV0, args.kappa, args.N, args.dt)
+# ----------------------------
+# Plot
+# ----------------------------
 
-    # 3) Potential along trajectory
-    V = V_eff(GV, args.V0, args.alpha)
+plt.figure(figsize=(8,5))
+plt.plot(z_vals, w_eff, label="w_eff(z)")
+plt.axhline(-1, linestyle="--", label="ΛCDM")
+plt.xlabel("Redshift z")
+plt.ylabel("w_eff")
+plt.title("GV Cosmology Engine")
+plt.legend()
 
-    # 4) Print summary (so CI logs are meaningful)
-    print("[GV Cosmology Engine]")
-    print(f"alpha={args.alpha:.6g}, V0={args.V0:.6g}, GV0={args.GV0:.6g}, kappa={args.kappa:.6g}")
-    print(f"slow-roll: epsilon={eps:.6g}, eta={eta:.6g}")
-    print(f"observables: n_s={ns:.6g}, r={r:.6g}")
-    print(f"final: GV(t_end)={GV[-1]:.6g}, V(t_end)={V[-1]:.6g}")
+if args.out:
+    plt.savefig(args.out, dpi=300)
+else:
+    plt.show()
 
-    # 5) Plot
-    plt.figure()
-    plt.plot(t, GV, label="GV(t) relax")
-    plt.xlabel("t (toy)")
-    plt.ylabel("GV")
-    plt.title(f"GV Relaxation (alpha={args.alpha})  |  n_s={ns:.4f}, r={r:.4f}")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(args.out, dpi=250)
-    print(f"[OK] Saved plot -> {args.out}")
-
-
-if __name__ == "__main__":
-    main()
+print(f"[OK] alpha={alpha}, GV0={GV0}, kappa={kappa}")
+print(f"[OK] w(z=0) ≈ {w_eff[0]:.5f}")
+print(f"[OK] w(z_max) ≈ {w_eff[-1]:.5f}")
