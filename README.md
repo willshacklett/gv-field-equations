@@ -1,42 +1,98 @@
 # GV Field Equations
 
-This repository is the **quantitative / mathematical layer** for God Variable (GV).
+This repository contains the formal mathematical program for the God Variable (GV).
 
-Goal: define a minimal, testable set of equations for GV dynamics and show how they connect to:
-- Cosmology (FLRW embedding, inflation, dark energy)
-- QFT/EFT (RG flow, Higgs protection, strong CP)
-- Black holes (entropy scaling, evaporation + unitarity)
+Unlike the main `god-variable-theory` hub (concept + ecosystem),
+this repo is strictly for quantitative development.
 
-This repo does **not** claim GV is proven. It defines the **program** required to test it.
+The goal:
 
-## Directory Map
+> Move GV from conceptual coherence to predictive field theory.
 
-- `/field` — core definitions and the GV flow equation
-- `/cosmology` — FLRW embedding, inflation, dark energy (w(z))
-- `/qft` — EFT/RG sketches, loop corrections, strong CP dynamics
-- `/black_holes` — entropy counting, evaporation/unitarity model
+---
 
-## Minimal Starting Point (v0)
+# Core Structure
 
-We begin with a continuity-like flow equation:
+## Field Theory
+
+- `field/gv_flow_equation.md`
+- `field/effective_action.md`
+- `field/perturbation_analysis.md`
+
+## Cosmology
+
+- `cosmology/flrw_embedding.md`
+- `cosmology/inflation.md`
+- `cosmology/dark_energy.md`
+
+## Quantum Field Theory
+
+- `qft/gv_modified_rg.md`
+- `qft/higgs_protection.md`
+- `qft/strong_cp.md`
+
+## Black Holes
+
+- `black_holes/entropy_counting.md`
+- `black_holes/evaporation_unitarity.md`
+
+---
+
+# Master Equation (Working Form)
+
+We treat GV as a dynamical scalar constraint field:
 
 \[
 \partial_t GV = -\nabla \cdot J_{GV} + S(GV)
 \]
 
-and an effective density mapping for cosmology:
+Where:
+
+- \(J_{GV}\) = constraint gradient transport
+- \(S(GV)\) = curvature / instability source terms
+
+Embedded in cosmology:
 
 \[
-H^2 = \frac{8\pi G}{3}\rho_{\text{eff}}(GV)
+H^2 = \frac{8\pi G}{3} \rho_{\text{eff}}(GV)
 \]
 
-Next step is to propose **one concrete choice** for:
-- the flux \(J_{GV}\)
-- the source term \(S(GV)\)
-- an effective action that generates the flow
+---
 
-## Status
+# Research Targets
 
-- v0 scaffolding ✅
-- v0 equations (symbolic) ✅
-- v1: choose explicit forms + derive at least one observable (w(z) or n_s) ⏳
+To be considered viable, GV must:
+
+- Match Planck CMB data
+- Produce viable inflation spectrum (n_s, r, f_NL)
+- Protect Higgs mass via UV→IR suppression
+- Resolve strong CP without axion
+- Reproduce black hole entropy scaling
+- Preserve unitarity in evaporation
+- Match SN Ia and BAO Λ constraints
+
+---
+
+# Philosophy
+
+GV is not introduced as a new particle.
+
+It is a constraint scalar governing:
+
+- Stability
+- Gradient transport
+- Cross-scale coupling suppression
+
+Symmetries emerge as attractors of constraint minimization.
+
+---
+
+# Status
+
+⚠️ Speculative / Research stage  
+This repository documents a working theoretical program — not established physics.
+
+---
+
+Coherence is required before belief.
+Prediction is required before acceptance.
