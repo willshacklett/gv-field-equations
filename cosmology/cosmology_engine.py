@@ -1,63 +1,146 @@
-import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+import argparse
+import os
 
-def w_of_z(z: np.ndarray, alpha: float, GV0: float, kappa: float) -> np.ndarray:
+
+# ------------------------------------------------------------
+# Argument Parser
+# ------------------------------------------------------------
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument("--alpha", type=float, default=0.1)
+parser.add_argument("--GV0", type=float, default=6.0)
+parser.add_argument("--kappa", type=float, default=0.2)
+
+parser.add_argument("--H0", type=float, default=70.0)
+parser.add_argument("--Omega_m", type=float, default=0.3)
+parser.add_argument("--Omega_gv", type=float, default=0.7)
+
+parser.add_argument("--zmax", type=float, default=3.0)
+parser.add_argument("--n", type=int, default=400)
+
+parser.add_argument("--out", type=str, default=None)
+
+args = parser.parse_args()
+
+
+# ------------------------------------------------------------
+# GV Dark Energy Model
+# ------------------------------------------------------------
+
+def w_of_z(z, alpha, GV0, kappa):
     """
-    Toy GV-driven dark energy relaxation:
-      - w(z) -> -1 at high z
-      - w(0) = -1 + alpha * exp(-kappa * GV0)
+    Toy GV equation of state.
+    Approaches -1 at high z.
     """
-    return -1.0 + (alpha * np.exp(-kappa * GV0)) / (1.0 + z) ** 2
+    GV_z = GV0 * np.exp(-kappa * z)
+    return -1.0 + alpha * np.exp(-GV_z)
 
-def lambda_eff(z: np.ndarray, alpha: float, GV0: float, kappa: float, Lambda0: float) -> np.ndarray:
+
+def lambda_eff(z, alpha, GV0, kappa):
     """
-    Toy effective cosmological constant (dimensionless scaling):
-      Lambda_eff(z) = Lambda0 * exp(-alpha * GV(z))
-    with GV(z) = GV0 / (1+z)^kappa (toy relaxation).
+    Effective vacuum energy density scaling.
     """
-    GV_z = GV0 / (1.0 + z) ** kappa
-    return Lambda0 * np.exp(-alpha * GV_z)
+    GV_z = GV0 * np.exp(-kappa * z)
+    return np.exp(-alpha * GV_z)
 
-def main():
-    p = argparse.ArgumentParser(description="GV Cosmology Engine (toy): w(z) + Lambda_eff(z)")
-    p.add_argument("--alpha", type=float, default=0.10, help="GV coupling strength")
-    p.add_argument("--GV0", type=float, default=6.0, help="GV at z=0 (today)")
-    p.add_argument("--kappa", type=float, default=0.20, help="GV relaxation exponent vs redshift")
-    p.add_argument("--Lambda0", type=float, default=1.0, help="Baseline Lambda scaling (dimensionless)")
-    p.add_argument("--zmax", type=float, default=3.0, help="Max redshift")
-    p.add_argument("--n", type=int, default=500, help="Number of samples")
-    p.add_argument("--out", type=str, default=None, help="Output PNG path (optional)")
-    p.add_argument("--csv", type=str, default=None, help="Output CSV path (optional)")
-    args = p.parse_args()
 
-    z = np.linspace(0.0, args.zmax, args.n)
-    w = w_of_z(z, args.alpha, args.GV0, args.kappa)
-    Leff = lambda_eff(z, args.alpha, args.GV0, args.kappa, args.Lambda0)
+# ------------------------------------------------------------
+# H(z) from dynamic w(z)
+# ------------------------------------------------------------
 
-    # Save CSV if requested
-    if args.csv:
-        header = "z,w,Lambda_eff"
-        data = np.column_stack([z, w, Leff])
-        np.savetxt(args.csv, data, delimiter=",", header=header, comments="")
-        print(f"[OK] Wrote CSV -> {args.csv}")
+def compute_Hz(z_vals, w_vals, H0, Omega_m, Omega_gv):
+    """
+    H^2(z) = H0^2 [ Ωm(1+z)^3 + Ωgv * exp(3∫(1+w)/(1+z) dz ) ]
+    """
 
-    # Plot
+    integral = np.zeros_like(z_vals)
+
+    for i in range(1, len(z_vals)):
+        dz = z_vals[i] - z_vals[i-1]
+        integrand = (1.0 + w_vals[i]) / (1.0 + z_vals[i])
+        integral[i] = integral[i-1] + integrand * dz
+
+    dark_energy_term = Omega_gv * np.exp(3.0 * integral)
+    matter_term = Omega_m * (1.0 + z_vals)**3
+
+    Hz = H0 * np.sqrt(matter_term + dark_energy_term)
+
+    return Hz
+
+
+# ------------------------------------------------------------
+# Main Execution
+# ------------------------------------------------------------
+
+z_vals = np.linspace(0.0, args.zmax, args.n)
+
+w_vals = w_of_z(z_vals, args.alpha, args.GV0, args.kappa)
+Hz_vals = compute_Hz(z_vals, w_vals, args.H0, args.Omega_m, args.Omega_gv)
+
+# LCDM baseline
+Hz_LCDM = args.H0 * np.sqrt(
+    args.Omega_m * (1 + z_vals)**3 + args.Omega_gv
+)
+
+
+# ------------------------------------------------------------
+# Plot 1 — w(z)
+# ------------------------------------------------------------
+
+plt.figure()
+plt.plot(z_vals, w_vals, label="GV w(z)")
+plt.axhline(-1.0, linestyle="--", label="ΛCDM w=-1")
+plt.xlabel("Redshift z")
+plt.ylabel("w(z)")
+plt.title(
+    f"GV Cosmology Engine: w(z)\n"
+    f"(alpha={args.alpha}, GV0={args.GV0}, kappa={args.kappa})"
+)
+plt.legend()
+
+os.makedirs("out", exist_ok=True)
+plt.savefig("out/cosmology_wz.png", dpi=300)
+
+
+# ------------------------------------------------------------
+# Plot 2 — H(z)
+# ------------------------------------------------------------
+
+plt.figure()
+plt.plot(z_vals, Hz_vals, label="GV H(z)")
+plt.plot(z_vals, Hz_LCDM, "--", label="ΛCDM")
+plt.xlabel("Redshift z")
+plt.ylabel("H(z) [km/s/Mpc]")
+plt.title("GV Cosmology Engine: Expansion History")
+plt.legend()
+
+plt.savefig("out/cosmology_Hz.png", dpi=300)
+
+
+# ------------------------------------------------------------
+# Optional Custom Output
+# ------------------------------------------------------------
+
+if args.out:
     plt.figure()
-    plt.plot(z, w, label="w(z)")
-    plt.axhline(-1.0, linestyle="--", label="LCDM w=-1")
-    plt.xlabel("Redshift z")
-    plt.ylabel("w(z)")
-    plt.title(f"GV Cosmology Engine: w(z)  (alpha={args.alpha}, GV0={args.GV0}, kappa={args.kappa})")
+    plt.plot(z_vals, w_vals, label="GV w(z)")
+    plt.plot(z_vals, Hz_vals / args.H0, label="H(z)/H0")
     plt.legend()
+    plt.xlabel("Redshift z")
+    plt.title("GV Cosmology Combined Output")
+    plt.savefig(args.out, dpi=300)
 
-    if args.out:
-        plt.savefig(args.out, dpi=300)
-        print(f"[OK] Saved plot -> {args.out}")
-    else:
-        plt.show()
 
-    print(f"[OK] w(0)={w[0]:.6f}, w(zmax)={w[-1]:.6f}, Lambda_eff(0)={Leff[0]:.6f}")
+# ------------------------------------------------------------
+# Console Output
+# ------------------------------------------------------------
 
-if __name__ == "__main__":
-    main()
+print("\n[OK] Cosmology Engine Complete")
+print(f"w(0) = {w_vals[0]:.6f}")
+print(f"H(0) = {Hz_vals[0]:.6f} km/s/Mpc")
+print("Saved:")
+print("  out/cosmology_wz.png")
+print("  out/cosmology_Hz.png")
