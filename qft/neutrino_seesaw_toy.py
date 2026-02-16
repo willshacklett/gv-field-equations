@@ -1,21 +1,32 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
-def S_amp(GV, GV0=1.0, p=1.0):
-    return (GV0 / GV) ** p
+# Constants (toy values)
+v = 246  # Higgs vev in GeV
+y_nu = 1e-5  # toy Yukawa
+M0 = 1e14  # base RH neutrino scale (GeV)
+beta = 2.0  # GV coupling strength
 
-def seesaw_mnu(Ynu, MR, GV=1.0, v=246.0, GV0=1.0, p=1.0):
-    # mD = v/sqrt(2) * Ynu * S(GV)
-    S = S_amp(GV, GV0=GV0, p=p)
-    mD = (v / np.sqrt(2.0)) * Ynu * S
-    # mnu = - mD MR^{-1} mD^T
-    MR_inv = np.linalg.inv(MR)
-    return -mD @ MR_inv @ mD.T
+# GV range
+GV = np.linspace(0, 3, 400)
 
-if __name__ == "__main__":
-    # Simple 3x3 demo: diagonal MR, small Yukawas
-    Ynu = np.diag([1e-6, 2e-6, 3e-6])
-    MR  = np.diag([1e12, 2e12, 3e12])  # GeV-ish scale toy
-    for GV in [0.5, 1.0, 2.0, 5.0]:
-        mnu = seesaw_mnu(Ynu, MR, GV=GV, p=1.0)
-        evals = np.linalg.eigvalsh(mnu)
-        print(f"GV={GV:>4}: eigenvalues ~ {evals}")
+# Dirac mass
+mD = y_nu * v
+
+# GV-modified heavy scale
+MR = M0 * np.exp(beta * GV)
+
+# Light neutrino mass (eV scale)
+m_nu = (mD**2 / MR) * 1e9  # convert GeV to eV approx
+
+plt.figure()
+plt.plot(GV, m_nu)
+plt.xlabel("GV")
+plt.ylabel("m_ν (eV)")
+plt.title("GV-Modified Neutrino Seesaw")
+plt.yscale("log")
+plt.grid(True)
+plt.show()
+
+print(f"m_nu(GV=0) = {m_nu[0]:.3e} eV")
+print(f"m_nu(GV=3) = {m_nu[-1]:.3e} eV")
