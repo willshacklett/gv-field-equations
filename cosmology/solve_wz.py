@@ -25,8 +25,8 @@ def main():
     plt.ylabel("w(z)")
     plt.title(f"GV Dark Energy Toy Model (lam={args.lam})")
     plt.tight_layout()
-    plt.savefig(args.out, dpi=180)
-    print(f"Saved: {args.out}")
+    plt.savefig(f"cosmology/wz_lam_{lam}.png")
+    print(f"Saved cosmology/wz_lam_{lam}.png")
 
 if __name__ == "__main__":
     main()
