@@ -1,69 +1,63 @@
+import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-import argparse
 
-# ----------------------------
-# Argument parser
-# ----------------------------
+def w_of_z(z: np.ndarray, alpha: float, GV0: float, kappa: float) -> np.ndarray:
+    """
+    Toy GV-driven dark energy relaxation:
+      - w(z) -> -1 at high z
+      - w(0) = -1 + alpha * exp(-kappa * GV0)
+    """
+    return -1.0 + (alpha * np.exp(-kappa * GV0)) / (1.0 + z) ** 2
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--alpha", type=float, default=0.1, help="Gradient strength")
-parser.add_argument("--GV0", type=float, default=5.0, help="Initial GV value")
-parser.add_argument("--kappa", type=float, default=0.2, help="Relaxation rate")
-parser.add_argument("--zmax", type=float, default=6.0, help="Max redshift")
-parser.add_argument("--n", type=int, default=400, help="Resolution")
-parser.add_argument("--out", type=str, default=None)
+def lambda_eff(z: np.ndarray, alpha: float, GV0: float, kappa: float, Lambda0: float) -> np.ndarray:
+    """
+    Toy effective cosmological constant (dimensionless scaling):
+      Lambda_eff(z) = Lambda0 * exp(-alpha * GV(z))
+    with GV(z) = GV0 / (1+z)^kappa (toy relaxation).
+    """
+    GV_z = GV0 / (1.0 + z) ** kappa
+    return Lambda0 * np.exp(-alpha * GV_z)
 
-args = parser.parse_args()
+def main():
+    p = argparse.ArgumentParser(description="GV Cosmology Engine (toy): w(z) + Lambda_eff(z)")
+    p.add_argument("--alpha", type=float, default=0.10, help="GV coupling strength")
+    p.add_argument("--GV0", type=float, default=6.0, help="GV at z=0 (today)")
+    p.add_argument("--kappa", type=float, default=0.20, help="GV relaxation exponent vs redshift")
+    p.add_argument("--Lambda0", type=float, default=1.0, help="Baseline Lambda scaling (dimensionless)")
+    p.add_argument("--zmax", type=float, default=3.0, help="Max redshift")
+    p.add_argument("--n", type=int, default=500, help="Number of samples")
+    p.add_argument("--out", type=str, default=None, help="Output PNG path (optional)")
+    p.add_argument("--csv", type=str, default=None, help="Output CSV path (optional)")
+    args = p.parse_args()
 
-alpha = args.alpha
-GV0 = args.GV0
-kappa = args.kappa
+    z = np.linspace(0.0, args.zmax, args.n)
+    w = w_of_z(z, args.alpha, args.GV0, args.kappa)
+    Leff = lambda_eff(z, args.alpha, args.GV0, args.kappa, args.Lambda0)
 
-# ----------------------------
-# GV potential
-# ----------------------------
+    # Save CSV if requested
+    if args.csv:
+        header = "z,w,Lambda_eff"
+        data = np.column_stack([z, w, Leff])
+        np.savetxt(args.csv, data, delimiter=",", header=header, comments="")
+        print(f"[OK] Wrote CSV -> {args.csv}")
 
-def V(GV):
-    return np.exp(-alpha * GV)
+    # Plot
+    plt.figure()
+    plt.plot(z, w, label="w(z)")
+    plt.axhline(-1.0, linestyle="--", label="LCDM w=-1")
+    plt.xlabel("Redshift z")
+    plt.ylabel("w(z)")
+    plt.title(f"GV Cosmology Engine: w(z)  (alpha={args.alpha}, GV0={args.GV0}, kappa={args.kappa})")
+    plt.legend()
 
-def dV_dGV(GV):
-    return -alpha * np.exp(-alpha * GV)
+    if args.out:
+        plt.savefig(args.out, dpi=300)
+        print(f"[OK] Saved plot -> {args.out}")
+    else:
+        plt.show()
 
-# ----------------------------
-# Simple GV evolution vs redshift
-# dGV/dz = -kappa * dV/dGV
-# ----------------------------
+    print(f"[OK] w(0)={w[0]:.6f}, w(zmax)={w[-1]:.6f}, Lambda_eff(0)={Leff[0]:.6f}")
 
-z_vals = np.linspace(0, args.zmax, args.n)
-GV_vals = np.zeros_like(z_vals)
-GV_vals[0] = GV0
-
-dz = z_vals[1] - z_vals[0]
-
-for i in range(1, len(z_vals)):
-    GV_vals[i] = GV_vals[i-1] - kappa * dV_dGV(GV_vals[i-1]) * dz
-
-# Effective dark energy equation of state
-w_eff = -1 + 0.1 * dV_dGV(GV_vals)
-
-# ----------------------------
-# Plot
-# ----------------------------
-
-plt.figure(figsize=(8,5))
-plt.plot(z_vals, w_eff, label="w_eff(z)")
-plt.axhline(-1, linestyle="--", label="ΛCDM")
-plt.xlabel("Redshift z")
-plt.ylabel("w_eff")
-plt.title("GV Cosmology Engine")
-plt.legend()
-
-if args.out:
-    plt.savefig(args.out, dpi=300)
-else:
-    plt.show()
-
-print(f"[OK] alpha={alpha}, GV0={GV0}, kappa={kappa}")
-print(f"[OK] w(z=0) ≈ {w_eff[0]:.5f}")
-print(f"[OK] w(z_max) ≈ {w_eff[-1]:.5f}")
+if __name__ == "__main__":
+    main()
