@@ -1,103 +1,116 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
-from scipy.integrate import cumulative_trapezoid
+import os
 
 # -----------------------------
-# Argument parser
+# Argument parsing
 # -----------------------------
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--alpha", type=float, default=0.1)
 parser.add_argument("--GV0", type=float, default=6.0)
 parser.add_argument("--kappa", type=float, default=0.2)
-
-parser.add_argument("--Omega_m", type=float, default=0.3)
-parser.add_argument("--H0", type=float, default=70.0)
-
-parser.add_argument("--zmax", type=float, default=3.0)
-parser.add_argument("--n", type=int, default=400)
-
+parser.add_argument("--Omega_m0", type=float, default=0.3)
 parser.add_argument("--out", type=str, default=None)
-parser.add_argument("--csv", type=str, default=None)
 
 args = parser.parse_args()
 
-# -----------------------------
-# Redshift grid
-# -----------------------------
-z = np.linspace(0, args.zmax, args.n)
+alpha = args.alpha
+GV0 = args.GV0
+kappa = args.kappa
+Omega_m0 = args.Omega_m0
 
 # -----------------------------
-# GV equation of state
-# w(z) toy model
+# GV Dark Energy Model
 # -----------------------------
-def w_gv(z):
-    return -1 + args.kappa * np.exp(-args.alpha * args.GV0) / (1 + z)
+
+def w_z(z):
+    """
+    Toy GV equation of state.
+    Approaches -1 at high z.
+    """
+    return -1.0 + kappa * np.exp(-alpha * z) * np.exp(-GV0 * 0.1)
+
+def Lambda_eff(z):
+    """
+    Effective vacuum energy scaling.
+    """
+    return np.exp(-alpha * GV0) * np.exp(-0.2 * z)
+
+def H_z(z, H0=70.0):
+    """
+    Flat universe approximation.
+    H^2 = H0^2 [ Ωm(1+z)^3 + ΩΛ_eff(z) ]
+    """
+    Omega_L = 1.0 - Omega_m0
+    return H0 * np.sqrt(
+        Omega_m0 * (1 + z)**3 +
+        Omega_L * Lambda_eff(z)
+    )
 
 # -----------------------------
-# Effective Lambda(z)
+# Luminosity Distance + SN μ(z)
 # -----------------------------
-def lambda_eff(z):
-    return np.exp(-args.alpha * args.GV0) * (1 + z)**(-args.kappa)
+
+def luminosity_distance(z, H0=70.0):
+    """
+    Numeric integral of 1/H(z).
+    Toy flat universe.
+    """
+    z_vals = np.linspace(0, z, 400)
+    dz = z_vals[1] - z_vals[0]
+    Hz = H_z(z_vals, H0)
+    integral = np.sum(1.0 / Hz) * dz
+    return (1 + z) * integral * 3000.0  # ~ c/H0 in Mpc
+
+def distance_modulus(z):
+    dL = luminosity_distance(z)
+    return 5 * np.log10(dL * 1e6) - 5
 
 # -----------------------------
-# Hubble parameter
+# Generate z grid
 # -----------------------------
-def H_gv(z):
-    w = w_gv(z)
-    Omega_L = lambda_eff(z)
-    return args.H0 * np.sqrt(args.Omega_m * (1 + z)**3 + Omega_L)
 
-def H_lcdm(z):
-    return args.H0 * np.sqrt(args.Omega_m * (1 + z)**3 + (1 - args.Omega_m))
+z_vals = np.linspace(0.001, 3.0, 300)
+
+w_vals = w_z(z_vals)
+mu_vals = np.array([distance_modulus(z) for z in z_vals])
 
 # -----------------------------
-# Luminosity distance
+# Plot w(z)
 # -----------------------------
-c = 299792.458  # km/s
 
-def luminosity_distance(z, H_func):
-    integrand = c / H_func(z)
-    integral = cumulative_trapezoid(integrand, z, initial=0)
-    return (1 + z) * integral
-
-dL_gv = luminosity_distance(z, H_gv)
-dL_lcdm = luminosity_distance(z, H_lcdm)
-
-# -----------------------------
-# Distance modulus
-# -----------------------------
-def distance_modulus(dL):
-    return 5 * np.log10(dL * 1e6) - 5  # Mpc to pc
-
-mu_gv = distance_modulus(dL_gv)
-mu_lcdm = distance_modulus(dL_lcdm)
-
-# -----------------------------
-# Plot
-# -----------------------------
 plt.figure(figsize=(8,6))
-plt.plot(z, mu_gv, label="GV Cosmology")
-plt.plot(z, mu_lcdm, "--", label="ΛCDM")
+plt.plot(z_vals, w_vals, label="GV w(z)")
+plt.axhline(-1, linestyle="--", label="ΛCDM w=-1")
 plt.xlabel("Redshift z")
-plt.ylabel("Distance Modulus μ(z)")
-plt.title("GV Cosmology Engine — SN Ia Test")
+plt.ylabel("w(z)")
+plt.title(f"GV Cosmology Engine (alpha={alpha}, GV0={GV0}, kappa={kappa})")
 plt.legend()
 
 if args.out:
+    os.makedirs("out", exist_ok=True)
     plt.savefig(args.out, dpi=300)
 else:
     plt.show()
 
 # -----------------------------
-# Optional CSV output
+# Save SN distance modulus CSV
 # -----------------------------
-if args.csv:
-    data = np.column_stack([z, mu_gv, mu_lcdm])
-    np.savetxt(args.csv, data,
-               header="z, mu_gv, mu_lcdm",
-               delimiter=",")
-    print("[OK] CSV saved:", args.csv)
 
-print("[OK] Run complete.")
+os.makedirs("out", exist_ok=True)
+
+np.savetxt(
+    "out/sn_mu.csv",
+    np.column_stack([z_vals, mu_vals]),
+    delimiter=",",
+    header="z,mu",
+    comments=""
+)
+
+print("[OK] Cosmology engine run complete")
+print(f"[OK] w(0)={w_vals[0]:.6f}")
+print(f"[OK] Lambda_eff(0)={Lambda_eff(0):.6f}")
+print("[OK] SN μ(z) saved to out/sn_mu.csv")
