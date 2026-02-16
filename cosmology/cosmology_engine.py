@@ -1,52 +1,88 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
+from scipy.integrate import cumulative_trapezoid
 
+# -----------------------------
+# Argument parser
+# -----------------------------
 parser = argparse.ArgumentParser()
+
 parser.add_argument("--alpha", type=float, default=0.1)
 parser.add_argument("--GV0", type=float, default=6.0)
 parser.add_argument("--kappa", type=float, default=0.2)
-parser.add_argument("--Omega_m0", type=float, default=0.3)
+
+parser.add_argument("--Omega_m", type=float, default=0.3)
+parser.add_argument("--H0", type=float, default=70.0)
+
+parser.add_argument("--zmax", type=float, default=3.0)
+parser.add_argument("--n", type=int, default=400)
+
 parser.add_argument("--out", type=str, default=None)
+parser.add_argument("--csv", type=str, default=None)
 
 args = parser.parse_args()
 
-alpha = args.alpha
-GV0 = args.GV0
-kappa = args.kappa
-Omega_m0 = args.Omega_m0
+# -----------------------------
+# Redshift grid
+# -----------------------------
+z = np.linspace(0, args.zmax, args.n)
 
-# --- Effective dark energy equation of state ---
-def w_z(z):
-    return -1 + kappa * np.exp(-alpha * GV0) * np.exp(-z)
+# -----------------------------
+# GV equation of state
+# w(z) toy model
+# -----------------------------
+def w_gv(z):
+    return -1 + args.kappa * np.exp(-args.alpha * args.GV0) / (1 + z)
 
-# --- Hubble parameter squared (flat universe) ---
-def H2(z):
-    Omega_DE0 = 1 - Omega_m0
-    return Omega_m0 * (1 + z)**3 + Omega_DE0 * np.exp(3 * np.cumsum((1 + w_z(z_grid)) / (1 + z_grid)) * dz)
+# -----------------------------
+# Effective Lambda(z)
+# -----------------------------
+def lambda_eff(z):
+    return np.exp(-args.alpha * args.GV0) * (1 + z)**(-args.kappa)
 
-# --- Growth equation (simple approximation) ---
-def growth_factor(z_vals):
-    D = np.zeros_like(z_vals)
-    D[0] = 1.0
+# -----------------------------
+# Hubble parameter
+# -----------------------------
+def H_gv(z):
+    w = w_gv(z)
+    Omega_L = lambda_eff(z)
+    return args.H0 * np.sqrt(args.Omega_m * (1 + z)**3 + Omega_L)
 
-    for i in range(1, len(z_vals)):
-        a = 1 / (1 + z_vals[i])
-        D[i] = D[i-1] * a  # toy scaling for prototype
+def H_lcdm(z):
+    return args.H0 * np.sqrt(args.Omega_m * (1 + z)**3 + (1 - args.Omega_m))
 
-    return D
+# -----------------------------
+# Luminosity distance
+# -----------------------------
+c = 299792.458  # km/s
 
-# --- Grid ---
-z_grid = np.linspace(0, 3, 400)
-dz = z_grid[1] - z_grid[0]
+def luminosity_distance(z, H_func):
+    integrand = c / H_func(z)
+    integral = cumulative_trapezoid(integrand, z, initial=0)
+    return (1 + z) * integral
 
-D_vals = growth_factor(z_grid)
+dL_gv = luminosity_distance(z, H_gv)
+dL_lcdm = luminosity_distance(z, H_lcdm)
 
-plt.figure()
-plt.plot(z_grid, D_vals, label="GV Growth D(z)")
+# -----------------------------
+# Distance modulus
+# -----------------------------
+def distance_modulus(dL):
+    return 5 * np.log10(dL * 1e6) - 5  # Mpc to pc
+
+mu_gv = distance_modulus(dL_gv)
+mu_lcdm = distance_modulus(dL_lcdm)
+
+# -----------------------------
+# Plot
+# -----------------------------
+plt.figure(figsize=(8,6))
+plt.plot(z, mu_gv, label="GV Cosmology")
+plt.plot(z, mu_lcdm, "--", label="ΛCDM")
 plt.xlabel("Redshift z")
-plt.ylabel("Growth Factor D")
-plt.title(f"GV Structure Growth (alpha={alpha}, GV0={GV0})")
+plt.ylabel("Distance Modulus μ(z)")
+plt.title("GV Cosmology Engine — SN Ia Test")
 plt.legend()
 
 if args.out:
@@ -54,4 +90,14 @@ if args.out:
 else:
     plt.show()
 
-print(f"[OK] Growth engine run complete")
+# -----------------------------
+# Optional CSV output
+# -----------------------------
+if args.csv:
+    data = np.column_stack([z, mu_gv, mu_lcdm])
+    np.savetxt(args.csv, data,
+               header="z, mu_gv, mu_lcdm",
+               delimiter=",")
+    print("[OK] CSV saved:", args.csv)
+
+print("[OK] Run complete.")
